@@ -45,11 +45,8 @@ public class MSBitSetBenchmark {
 
     @Param({
             "_1024_1024",
-            "_1024",
-            "_8192_8192",
-            "_8192",
-            "_16384_16384",
-            "_16384"
+            "_4096_4096",
+            "_16384_16384"
     })
     public MSBFSSource source;
 
