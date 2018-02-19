@@ -19,7 +19,6 @@
 package org.neo4j.graphalgo.core;
 
 import org.neo4j.collection.primitive.PrimitiveLongIterator;
-import org.neo4j.graphalgo.core.IdMap;
 import org.neo4j.graphalgo.core.utils.ImportProgress;
 import org.neo4j.graphalgo.core.utils.StatementTask;
 import org.neo4j.kernel.api.ReadOperations;
@@ -44,6 +43,11 @@ public final class NodeImporter extends StatementTask<IdMap, EntityNotFoundExcep
     }
 
     @Override
+    public String threadName() {
+        return "node-importer";
+    }
+
+    @Override
     public IdMap apply(final Statement statement) throws
             EntityNotFoundException {
         final IdMap mapping = new IdMap(nodeCount);
@@ -53,7 +57,7 @@ public final class NodeImporter extends StatementTask<IdMap, EntityNotFoundExcep
                 : readOp.nodesGetForLabel(labelId);
         while (nodeIds.hasNext()) {
             mapping.add(nodeIds.next());
-            progress.nodeProgress();
+            progress.nodeImported();
         }
         mapping.buildMappedIds();
         progress.resetForRelationships();

@@ -50,7 +50,12 @@ public final class HugeNodeImporter extends StatementTask<HugeIdMap, EntityNotFo
     }
 
     @Override
-    public HugeIdMap apply(final Statement statement) throws EntityNotFoundException {
+    public String threadName() {
+        return "HugeNodeImport";
+    }
+
+    @Override
+    public HugeIdMap apply(final Statement statement) {
         final HugeIdMap mapping = new HugeIdMap(nodeCount, allNodesCount, tracker);
         final ReadOperations readOp = statement.readOperations();
         final PrimitiveLongIterator nodeIds = labelId == ReadOperations.ANY_LABEL
@@ -58,7 +63,7 @@ public final class HugeNodeImporter extends StatementTask<HugeIdMap, EntityNotFo
                 : readOp.nodesGetForLabel(labelId);
         while (nodeIds.hasNext()) {
             mapping.add(nodeIds.next());
-            progress.nodeProgress();
+            progress.nodeImported();
         }
         progress.resetForRelationships();
         return mapping;

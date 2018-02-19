@@ -1,18 +1,18 @@
 /**
  * Copyright (c) 2017 "Neo4j, Inc." <http://neo4j.com>
- *
+ * <p>
  * This file is part of Neo4j Graph Algorithms <http://github.com/neo4j-contrib/neo4j-graph-algorithms>.
- *
+ * <p>
  * Neo4j Graph Algorithms is free software: you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
  * the Free Software Foundation, either version 3 of the License, or
  * (at your option) any later version.
- *
+ * <p>
  * This program is distributed in the hope that it will be useful,
  * but WITHOUT ANY WARRANTY; without even the implied warranty of
  * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
  * GNU General Public License for more details.
- *
+ * <p>
  * You should have received a copy of the GNU General Public License
  * along with this program.  If not, see <http://www.gnu.org/licenses/>.
  */
@@ -31,7 +31,6 @@ import org.neo4j.graphalgo.core.utils.RawValues;
 import org.neo4j.graphalgo.core.utils.StatementTask;
 import org.neo4j.graphalgo.core.utils.paged.AllocationTracker;
 import org.neo4j.graphalgo.core.utils.paged.ByteArray;
-import org.neo4j.graphalgo.core.utils.paged.DeltaEncoding;
 import org.neo4j.graphalgo.core.utils.paged.HugeLongArray;
 import org.neo4j.graphdb.Direction;
 import org.neo4j.helpers.Exceptions;
@@ -44,6 +43,8 @@ import org.neo4j.kernel.internal.GraphDatabaseAPI;
 
 import java.util.Arrays;
 import java.util.concurrent.atomic.AtomicLong;
+
+import static org.neo4j.graphalgo.core.utils.paged.DeltaEncoding.vSize;
 
 public final class HugeGraphFactory extends GraphFactory {
 
@@ -64,13 +65,88 @@ public final class HugeGraphFactory extends GraphFactory {
 
 
     private HugeGraph importGraph() throws EntityNotFoundException {
+        GraphDimensions dimensions = this.dimensions;
+        log.info(
+                "Importing up to %d nodes and up to %d relationships",
+                dimensions.nodeCount(),
+                dimensions.maxRelCount());
         int concurrency = setup.concurrency();
         AllocationTracker tracker = setup.tracker;
         HugeWeightMapping weights = hugeWeightMapping(tracker, dimensions.weightId(), setup.relationDefaultWeight);
         HugeIdMap mapping = loadHugeIdMap(tracker);
-        HugeGraph graph = loadRelationships(dimensions, mapping, weights, concurrency, tracker, progress);
+        HugeGraph graph = loadSeq(dimensions, tracker, mapping, weights, concurrency);
         progressLogger.logDone(tracker);
         return graph;
+    }
+
+    private HugeGraph loadSeq(
+            GraphDimensions dimensions,
+            AllocationTracker tracker,
+            HugeIdMap mapping,
+            HugeWeightMapping weights,
+            int concurrency) {
+        return loadSeq2(dimensions, tracker, mapping, weights, concurrency);
+//        return loadRelationships(dimensions, mapping, weights, concurrency, tracker, progress);
+//        return loadBogusRelationships(mapping, weights, tracker);
+    }
+
+    private HugeGraph loadSeq2(
+            GraphDimensions dimensions,
+            AllocationTracker tracker,
+            HugeIdMap mapping,
+            HugeWeightMapping weights,
+            int concurrency) {
+        final long nodeCount = dimensions.hugeNodeCount();
+        HugeLongArray outOffsets = null;
+        ByteArray outAdjacency = null;
+        HugeLongArray inOffsets = null;
+        ByteArray inAdjacency = null;
+        if (setup.loadAsUndirected) {
+            outOffsets = HugeLongArray.newArray(nodeCount, tracker);
+            outAdjacency = ByteArray.newArray(0, tracker);
+        } else {
+            if (setup.loadOutgoing) {
+                outOffsets = HugeLongArray.newArray(nodeCount, tracker);
+                outAdjacency = ByteArray.newArray(0, tracker);
+            }
+            if (setup.loadIncoming) {
+                inOffsets = HugeLongArray.newArray(nodeCount, tracker);
+                inAdjacency = ByteArray.newArray(0, tracker);
+            }
+        }
+
+        final ScanningRelationshipImporter importer = ScanningRelationshipImporter.create(
+                dimensions, setup, api, progress, mapping,
+                outOffsets, outAdjacency, inOffsets, inAdjacency,
+                threadPool, concurrency);
+        if (importer != null) {
+            importer.run();
+        }
+
+        return new HugeGraphImpl(
+                tracker,
+                mapping,
+                weights,
+                inAdjacency,
+                outAdjacency,
+                inOffsets,
+                outOffsets
+        );
+    }
+
+    private HugeGraph loadBogusRelationships(
+            HugeIdMap mapping,
+            HugeWeightMapping weights,
+            AllocationTracker tracker) {
+        return new HugeGraphImpl(
+                tracker,
+                mapping,
+                weights,
+                null,
+                null,
+                null,
+                null
+        );
     }
 
     private HugeGraph loadRelationships(
@@ -339,7 +415,7 @@ public final class HugeGraphFactory extends GraphFactory {
             long nodeId;
             while ((nodeId = nodes.next()) != -1L) {
                 loader.apply(idMap.toOriginalNodeId(nodeId), nodeId);
-                progress.relProgress();
+                progress.allRelationshipsPerNodeImported();
             }
             return null;
         }
@@ -531,14 +607,14 @@ public final class HugeGraphFactory extends GraphFactory {
 
             long delta = targets[0];
             int writePos = 1;
-            long requiredBytes = 4L + DeltaEncoding.vSize(delta);  // length as full-int
+            long requiredBytes = 4L + vSize(delta);  // length as full-int
 
             for (int i = 1; i < length; ++i) {
                 long nextDelta = targets[i];
                 long value = targets[writePos] = nextDelta - delta;
                 if (value > 0L) {
                     ++writePos;
-                    requiredBytes += DeltaEncoding.vSize(value);
+                    requiredBytes += vSize(value);
                     delta = nextDelta;
                 }
             }

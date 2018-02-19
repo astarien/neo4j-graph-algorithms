@@ -18,10 +18,17 @@
  */
 package org.neo4j.graphalgo.core.utils;
 
-public interface RenamingRunnable extends Runnable {
+import java.util.concurrent.Callable;
+
+public interface RenamingRunnable<T> extends Runnable, Callable<T> {
 
     @Override
     default void run() {
+        call();
+    }
+
+    @Override
+    default T call() {
         Thread currentThread = Thread.currentThread();
         String oldThreadName = currentThread.getName();
         String newThreadName = threadName();
@@ -37,7 +44,7 @@ public interface RenamingRunnable extends Runnable {
         }
 
         try {
-            doRun();
+            return doRun();
         } finally {
             if (renamed) {
                 currentThread.setName(oldThreadName);
@@ -49,5 +56,5 @@ public interface RenamingRunnable extends Runnable {
         return getClass().getSimpleName() + "-" + System.identityHashCode(this);
     }
 
-    void doRun();
+    T doRun();
 }

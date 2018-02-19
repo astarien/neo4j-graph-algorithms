@@ -161,7 +161,7 @@ final class RelationshipImporter extends StatementTask<Void, EntityNotFoundExcep
                     nodeProps,
                     relationId
             );
-            progress.relProgress();
+            progress.allRelationshipsPerNodeImported();
         }
         this.currentNodeCount = nodeCount;
         return null;
