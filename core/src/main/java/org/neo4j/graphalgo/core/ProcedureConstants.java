@@ -41,6 +41,8 @@ public class ProcedureConstants {
 
     public static final String WRITE_PROPERTY_DEFAULT = "writeValue";
 
+    public static final String WEIGHTED = "weighted";
+
     public static final String STATS_FLAG = "stats";
 
     public static final double DEFAULT_PROPERTY_VALUE_DEFAULT = 1.0;

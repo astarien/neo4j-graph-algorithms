@@ -48,6 +48,7 @@ public class DegreeCentrality extends Algorithm<DegreeCentrality> {
     private Path[] paths;
     private int nodeCount;
     private Direction direction = Direction.OUTGOING;
+    private boolean weighted = false;
     private double divisor = 1.0;
 
     public DegreeCentrality(Graph graph) {
@@ -67,6 +68,12 @@ public class DegreeCentrality extends Algorithm<DegreeCentrality> {
         this.divisor = direction == Direction.BOTH ? 2.0 : 1.0;
         return this;
     }
+
+    public DegreeCentrality withWeighted(boolean weighted) {
+        this.weighted = weighted;
+        return this;
+    }
+
 
     /**
      * compute centrality
@@ -105,45 +112,12 @@ public class DegreeCentrality extends Algorithm<DegreeCentrality> {
                                 centrality[nodeId]));
     }
 
-    private boolean compute(int startNode) {
-        clearPaths();
-        stack.clear();
-        queue.clear();
-        Arrays.fill(sigma, 0);
-        Arrays.fill(delta, 0);
-        Arrays.fill(distance, -1);
-        sigma[startNode] = 1;
-        distance[startNode] = 0;
-        queue.addLast(startNode);
-        while (!queue.isEmpty() && running()) {
-            int node = queue.removeFirst();
-            stack.push(node);
-            graph.forEachRelationship(node, direction, (source, target, relationId) -> {
-                if (distance[target] < 0) {
-                    queue.addLast(target);
-                    distance[target] = distance[node] + 1;
-                }
-                if (distance[target] == distance[node] + 1) {
-                    sigma[target] += sigma[node];
-                    append(target, node);
-                }
-                return true;
-            });
-        }
-        while (!stack.isEmpty() && running()) {
-            final int node = stack.pop();
-            if (null == paths[node]) {
-                continue;
-            }
-            paths[node].forEach(v -> {
-                delta[v] += (double) sigma[v] / (double) sigma[node] * (delta[node] + 1.0);
-                return true;
-            });
-            if (node != startNode) {
-                centrality[node] += (delta[node] / divisor);
-            }
-        }
-        getProgressLogger().logProgress((double) startNode / (nodeCount - 1));
+    private boolean compute(int currentNode) {
+        double score = graph.degree(currentNode, direction);
+        if (weighted)
+            score = score / nodeCount;
+        centrality[currentNode] = score;
+        getProgressLogger().logProgress((double) currentNode / (nodeCount - 1));
         return true;
     }
 

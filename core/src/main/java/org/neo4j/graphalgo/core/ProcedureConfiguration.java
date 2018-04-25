@@ -174,6 +174,16 @@ public class ProcedureConfiguration {
     }
 
     /**
+     * return whether the calculation is weighted has been set
+     *
+     * @return true if weighting is wanted, false otherwise
+     */
+    public boolean isWeighted() {
+        return isWeighted(false);
+    }
+
+
+    /**
      * TODO
      *
      * @return
@@ -199,6 +209,10 @@ public class ProcedureConfiguration {
      */
     public boolean isWriteFlag(boolean defaultValue) {
         return get(ProcedureConstants.WRITE_FLAG, defaultValue);
+    }
+
+    public boolean isWeighted(boolean defaultValue) {
+        return get(ProcedureConstants.WEIGHTED, defaultValue);
     }
 
     public boolean isCypherFlag(boolean defaultValue) {

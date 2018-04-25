@@ -84,6 +84,7 @@ public class DegreeCentralityProc {
                             .withProgressLogger(ProgressLogger.wrap(log, "DegreeCentrality"))
                             .withTerminationFlag(TerminationFlag.wrap(transaction))
                             .withDirection(configuration.getDirection(DEFAULT_DIRECTION))
+                            .withWeighted(configuration.isWeighted(false))
                             .compute();
             graph.release();
             return algo.resultStream();
@@ -91,6 +92,7 @@ public class DegreeCentralityProc {
 
         final DegreeCentrality compute = new DegreeCentrality(graph)
                 .withDirection(configuration.getDirection(DEFAULT_DIRECTION))
+                .withWeighted(configuration.isWeighted(false))
                 .compute();
         graph.release();
         return compute.resultStream();
@@ -137,7 +139,8 @@ public class DegreeCentralityProc {
         final DegreeCentrality bc = new DegreeCentrality(graph)
                 .withTerminationFlag(terminationFlag)
                 .withProgressLogger(ProgressLogger.wrap(log, "DegreeCentrality(sequential)"))
-                .withDirection(configuration.getDirection(Direction.OUTGOING));
+                .withDirection(configuration.getDirection(Direction.OUTGOING))
+                .withWeighted(configuration.isWeighted(false));
 
         builder.timeEval(() -> {
             bc.compute();
@@ -193,7 +196,8 @@ public class DegreeCentralityProc {
                 new ParallelDegreeCentrality(graph, Pools.DEFAULT, configuration.getConcurrency())
                         .withProgressLogger(ProgressLogger.wrap(log, "DegreeCentrality(parallel)"))
                         .withTerminationFlag(terminationFlag)
-                        .withDirection(configuration.getDirection(Direction.OUTGOING));
+                        .withDirection(configuration.getDirection(Direction.OUTGOING))
+                        .withWeighted(configuration.isWeighted(false));
 
         builder.timeEval(() -> {
             bc.compute();

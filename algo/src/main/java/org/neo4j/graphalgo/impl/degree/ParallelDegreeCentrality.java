@@ -57,6 +57,7 @@ public class ParallelDegreeCentrality extends Algorithm<ParallelDegreeCentrality
     // number of threads to spawn
     private final int concurrency;
     private Direction direction = Direction.OUTGOING;
+    private boolean weighted = false;
     private double divisor = 1.0;
 
     /**
@@ -77,6 +78,11 @@ public class ParallelDegreeCentrality extends Algorithm<ParallelDegreeCentrality
     public ParallelDegreeCentrality withDirection(Direction direction) {
         this.direction = direction;
         this.divisor = direction == Direction.BOTH ? 2.0 : 1.0;
+        return this;
+    }
+
+    public ParallelDegreeCentrality withWeighted(boolean weighted) {
+        this.weighted = weighted;
         return this;
     }
 
@@ -155,40 +161,15 @@ public class ParallelDegreeCentrality extends Algorithm<ParallelDegreeCentrality
         public void run() {
             for (;;) {
                 reset();
-                final int startNodeId = nodeQueue.getAndIncrement();
-                if (startNodeId >= nodeCount || !running()) {
+                final int currentNodeId = nodeQueue.getAndIncrement();
+                if (currentNodeId >= nodeCount || !running()) {
                     return;
                 }
-                getProgressLogger().logProgress((double) startNodeId / (nodeCount - 1));
-                sigma[startNodeId] = 1;
-                distance[startNodeId] = 0;
-                queue.addLast(startNodeId);
-                while (!queue.isEmpty()) {
-                    int node = queue.removeFirst();
-                    stack.push(node);
-                    graph.forEachRelationship(node, direction, (source, target, relationId) -> {
-                        if (distance[target] < 0) {
-                            queue.addLast(target);
-                            distance[target] = distance[node] + 1;
-                        }
-                        if (distance[target] == distance[node] + 1) {
-                            sigma[target] += sigma[node];
-                            paths.append(target, node);
-                        }
-                        return true;
-                    });
-                }
-
-                while (!stack.isEmpty()) {
-                    int node = stack.pop();
-                    paths.forEach(node, v -> {
-                        delta[v] += (double) sigma[v] / (double) sigma[node] * (delta[node] + 1.0);
-                        return true;
-                    });
-                    if (node != startNodeId) {
-                        centrality.add(node, delta[node] / divisor);
-                    }
-                }
+                getProgressLogger().logProgress((double) currentNodeId / (nodeCount - 1));
+                double score = graph.degree(currentNodeId, direction);
+                if (weighted)
+                    score = score / nodeCount;
+                centrality.add(currentNodeId, score);
             }
         }
 

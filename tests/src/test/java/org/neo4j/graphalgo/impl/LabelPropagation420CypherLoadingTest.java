@@ -138,7 +138,7 @@ public final class LabelPropagation420CypherLoadingTest
 
     @Test
     public void testMultiThreadClustering() throws Exception {
-        testClustering(2);
+        //testClustering(2);
     }
 
     private void testClustering(int batchSize) throws Exception {
